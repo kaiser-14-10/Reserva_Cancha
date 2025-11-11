@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Disponibilidad de Canchas{% endblock %}
+{% block content %}
+<h2 class="mb-4">Disponibilidad de Canchas</h2>
+<div class="row">
+  {% for cancha in canchas %}
+  <div class="col-md-4 mb-3">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">{{ cancha.nombre }}</h5>
+        <p class="card-text">Tipo: {{ cancha.tipo }}</p>
+        <p class="card-text text-success fw-bold">${{ cancha.precio }}</p>
+        <a href="{% url 'reservar' cancha.id %}" class="btn btn-success w-100">Reservar</a>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <p>No hay canchas disponibles.</p>
+  {% endfor %}
+</div>
+{% endblock %}
