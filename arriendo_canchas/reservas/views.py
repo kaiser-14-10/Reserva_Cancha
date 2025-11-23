@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Cancha, Reserva, Log
 from datetime import date
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.forms import AuthenticationForm
 
 def home(request):
     canchas = Cancha.objects.all()
@@ -33,3 +35,24 @@ def cancelar_reserva(request, id):
     Log.objects.create(usuario=request.user, accion=f"Canceló reserva {reserva.cancha.nombre}")
     messages.info(request, 'Reserva cancelada.')
     return redirect('mis_reservas')
+
+
+def login_usuario(request):
+    if request.user.is_authenticated:
+        return redirect('home')
+
+    form = AuthenticationForm()
+
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            usuario = form.get_user()
+            login(request, usuario)
+            return redirect('home')
+
+    return render(request, 'login.html', {'form': form})
+
+
+def logout_usuario(request):
+    logout(request)
+    return redirect('home')

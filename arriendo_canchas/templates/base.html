@@ -25,21 +25,43 @@
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-success">
-        <div class="container">
+    <div class="container">
 
-            <a class="navbar-brand d-flex align-items-center" href="/">
-                <img src="{% static 'img/logo.png.png' %}" 
-                     alt="Logo" 
-                     class="me-3" 
-                     style="height:80px; width:auto;">
-                <span style="font-size: 1.5rem;">Arriendo Canchas</span>
-            </a>
+        <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}">
+            <img src="{% static 'img/logo.png.png' %}" 
+                alt="Logo" 
+                class="me-3" 
+                style="height:80px; width:auto;">
+            <span style="font-size: 1.5rem;">Arriendo Canchas</span>
+        </a>
 
-            <div>
-                <a class="nav-link text-white fw-bold" href="{% url 'mis_reservas' %}">Mis reservas</a>
-            </div>
+        <div class="ms-auto d-flex align-items-center">
+
+            {% if user.is_authenticated %}
+
+                <span class="text-white me-3 fw-bold">
+                    Hola, {{ user.username }}
+                </span>
+
+                <a class="btn btn-outline-light me-2" href="{% url 'mis_reservas' %}">
+                    Mis reservas
+                </a>
+
+                <a class="btn btn-danger" href="{% url 'logout' %}">
+                    Cerrar sesión
+                </a>
+
+            {% else %}
+
+                <a class="btn btn-light fw-bold" href="{% url 'login' %}">
+                    Iniciar sesión
+                </a>
+
+            {% endif %}
         </div>
-    </nav>
+    </div>
+</nav>
+
 
     <div class="container mt-4 contenido">
         {% block content %}{% endblock %}
