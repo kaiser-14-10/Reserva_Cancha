@@ -25,3 +25,22 @@ class Log(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     accion = models.CharField(max_length=200)
     fecha = models.DateTimeField(auto_now_add=True)
+
+
+class FechasNoDisponibles(models.Model):
+    cancha = models.ForeignKey(Cancha, on_delete=models.CASCADE)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    motivo = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "Fecha no disponible"
+        verbose_name_plural = "Fechas no disponibles"
+
+    def __str__(self):
+        return f"{self.cancha.nombre} — {self.fecha_inicio} → {self.fecha_fin}"
+
+    def contiene(self, fecha_obj):
+        """Devuelve True si fecha_obj (date) está entre inicio y fin (inclusive)."""
+        return self.fecha_inicio <= fecha_obj <= self.fecha_fin
+
