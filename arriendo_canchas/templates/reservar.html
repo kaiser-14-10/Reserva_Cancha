@@ -1,8 +1,41 @@
 {% extends 'base.html' %}
 {% block title %}Reservar Cancha{% endblock %}
-
 {% block content %}
+
 <h2 class="mb-4">Reservar: {{ cancha.nombre }}</h2>
+
+<style>
+.dia {
+    padding: 8px;
+    display: inline-block;
+    margin: 3px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    width: 40px;
+    text-align: center;
+    cursor: pointer;
+}
+.bloq { background: #ff4d4d; color: white; cursor:not-allowed; }
+.pasado { opacity: 0.4; cursor:not-allowed; }
+.limite { background: #ffaa2b; }
+.selected { background: #198754; color: white; }
+</style>
+
+<h5>Días del mes</h5>
+
+<div class="mb-3">
+    {% for d in dias_mes %}
+        <div class="dia
+            {% if d.bloqueado %}bloq{% endif %}
+            {% if d.pasado %}pasado{% endif %}
+            {% if d.fuera_limite %}limite{% endif %}"
+            
+            data-fecha="{{ d.fecha|date:'Y-m-d' }}"
+        >
+            {{ d.fecha.day }}
+        </div>
+    {% endfor %}
+</div>
 
 {% if error %}
 <div class="alert alert-danger">{{ error }}</div>
@@ -12,28 +45,40 @@
     {% csrf_token %}
 
     <div class="mb-3">
-        <label class="form-label fw-bold">Fecha disponible:</label>
-        <select name="fecha" class="form-select" required>
-            <option value="" selected disabled>Selecciona una fecha</option>
-
-            {% for d in dias_mes %}
-                {% if not d.bloqueado and not d.pasado and not d.fuera_limite %}
-                    <option value="{{ d.fecha }}">{{ d.fecha }}</option>
-                {% endif %}
-            {% endfor %}
-        </select>
+        <label class="form-label">Fecha seleccionada:</label>
+        <input type="date" 
+            name="fecha" 
+            id="fecha_input" 
+            class="form-control" 
+            required 
+            onkeydown="return false">
     </div>
 
     <div class="mb-3">
-        <label class="form-label fw-bold">Hora:</label>
-        <input type="time" class="form-control" name="hora" required>
+        <label class="form-label">Hora:</label>
+        <input type="time" name="hora" class="form-control" required>
     </div>
 
-    <button type="submit" class="btn btn-success w-100">
-        Confirmar reserva
-    </button>
+    <button type="submit" class="btn btn-success w-100">Confirmar reserva</button>
 </form>
 
 <a href="/" class="btn btn-link mt-3">Volver</a>
-{% endblock %}
 
+<script>
+document.querySelectorAll(".dia").forEach(dia => {
+    dia.addEventListener("click", () => {
+
+        if (dia.classList.contains("bloq") ||
+            dia.classList.contains("pasado")) {
+            return;
+        }
+
+        document.querySelectorAll(".dia").forEach(d => d.classList.remove("selected"));
+
+        dia.classList.add("selected");
+        document.getElementById("fecha_input").value = dia.dataset.fecha;
+    });
+});
+</script>
+
+{% endblock %}
