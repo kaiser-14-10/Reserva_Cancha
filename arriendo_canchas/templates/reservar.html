@@ -76,6 +76,7 @@ document.querySelectorAll(".dia").forEach(dia => {
         document.querySelectorAll(".dia").forEach(d => d.classList.remove("selected"));
 
         dia.classList.add("selected");
+
         document.getElementById("fecha_input").value = dia.dataset.fecha;
     });
 });
