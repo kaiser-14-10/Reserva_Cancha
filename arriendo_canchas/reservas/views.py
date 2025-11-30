@@ -1,13 +1,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login, logout
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from datetime import datetime, date, timedelta
 from .models import Reserva, Cancha, FechasNoDisponibles
 import calendar
 
-DIAS_BLOQUEADOS = []
 
+DIAS_BLOQUEADOS = []
 FECHA_LIMITE = date.today() + timedelta(days=30)
 
 
@@ -25,9 +25,11 @@ def register(request):
 
 def home(request):
     canchas = Cancha.objects.all()
-
     hoy = date.today()
-    bloqueos = FechasNoDisponibles.objects.filter(fecha_fin__gte=hoy).order_by("fecha_fin")
+
+    bloqueos = FechasNoDisponibles.objects.filter(
+        fecha_fin__gte=hoy
+    ).order_by("fecha_fin")
 
     return render(request, "home.html", {
         "canchas": canchas,
@@ -64,6 +66,7 @@ def reservar(request, cancha_id):
         dia = request.POST.get("fecha")
         hora = request.POST.get("hora")
 
+        # ---- Validación fecha ----
         try:
             fecha_obj = datetime.strptime(dia, "%Y-%m-%d").date()
         except Exception:
@@ -80,6 +83,7 @@ def reservar(request, cancha_id):
                 "error": "No puedes reservar después de la fecha límite."
             })
 
+        # ---- Bloqueo de administrador ----
         bloqueo = FechasNoDisponibles.objects.filter(
             cancha=cancha,
             fecha_inicio__lte=fecha_obj,
@@ -93,6 +97,7 @@ def reservar(request, cancha_id):
                 "error": f"La cancha no está disponible hasta el {bloqueo.fecha_fin} {('('+bloqueo.motivo+')') if bloqueo.motivo else ''}"
             })
 
+        # ---- Validación hora ----
         try:
             hora_obj = datetime.strptime(hora, "%H:%M").time()
         except Exception:
@@ -102,11 +107,12 @@ def reservar(request, cancha_id):
                 "error": "Formato de hora inválido."
             })
 
+        # ---- Revisar conflicto con reservas existentes ----
         conflicto = Reserva.objects.filter(
             cancha=cancha,
             fecha=fecha_obj,
             hora=hora_obj,
-            estado__in=["Reservado"]
+            estado__in=["Pendiente", "Pagado"]
         ).exists()
 
         if conflicto:
@@ -116,12 +122,13 @@ def reservar(request, cancha_id):
                 "error": "Ya existe una reserva en ese día/hora."
             })
 
+        # ---- Crear reserva ----
         Reserva.objects.create(
             usuario=request.user,
             cancha=cancha,
             fecha=fecha_obj,
             hora=hora_obj,
-            estado="Reservado"
+            estado="Pendiente"
         )
 
         return redirect("mis_reservas")
@@ -134,7 +141,9 @@ def reservar(request, cancha_id):
 
 @login_required
 def mis_reservas(request):
-    reservas = Reserva.objects.filter(usuario=request.user).order_by("fecha")
+    reservas = Reserva.objects.filter(
+        usuario=request.user
+    ).order_by("fecha")
 
     for r in reservas:
         bloqueo = FechasNoDisponibles.objects.filter(
@@ -142,6 +151,7 @@ def mis_reservas(request):
             fecha_inicio__lte=r.fecha,
             fecha_fin__gte=r.fecha
         ).first()
+
         r.aviso = None
         if bloqueo:
             r.aviso = f"La cancha no estará disponible hasta {bloqueo.fecha_fin} {('('+bloqueo.motivo+')') if bloqueo.motivo else ''}"
@@ -167,6 +177,7 @@ def calendario(request):
 
     bloqueos = FechasNoDisponibles.objects.all()
     dias_bloqueados = set()
+
     for b in bloqueos:
         delta = (b.fecha_fin - b.fecha_inicio).days + 1
         for i in range(delta):
@@ -192,5 +203,22 @@ def pago(request, reserva_id):
     reserva = get_object_or_404(Reserva, id=reserva_id, usuario=request.user)
     return render(request, "pago.html", {"reserva": reserva})
 
+@login_required
+def pago(request, reserva_id):
+    reserva = get_object_or_404(Reserva, id=reserva_id, usuario=request.user)
+
+    if request.method == "POST":
+        tarjeta = request.POST.get("tarjeta")
+        cvv = request.POST.get("cvv")
+        correo = request.POST.get("correo")
+        reserva.estado = "Pagado"
+        reserva.save()
+
+        return redirect("pago_exitoso")
+
+    return render(request, "pago.html", {"reserva": reserva})
 
 
+@login_required
+def pago_exitoso(request):
+    return render(request, "pago_exitoso.html")
