@@ -1,24 +1,56 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h2 class="mb-4">Pago de Reserva</h2>
+<style>
+.pago-card {
+    max-width: 500px;
+    margin: auto;
+    background: #ffffffcc;
+    backdrop-filter: blur(10px);
+    padding: 25px;
+    border-radius: 15px;
+}
+.bg-fondo {
+    background: url('/static/img/fondo_cancha.jpg') no-repeat center center/cover;
+    min-height: 100vh;
+    padding-top: 40px;
+}
+</style>
 
-<div class="card p-4 shadow-sm">
+<div class="bg-fondo">
 
-    <p><strong>Cancha:</strong> {{ reserva.cancha.nombre }}</p>
-    <p><strong>Fecha:</strong> {{ reserva.fecha }}</p>
-    <p><strong>Hora:</strong> {{ reserva.hora }}</p>
-    <p><strong>Total a pagar:</strong> ${{ reserva.cancha.precio }}</p>
+    <div class="pago-card shadow">
 
-    <form method="post">
-        {% csrf_token %}
-        <button class="btn btn-success w-100 mt-3">
-            Confirmar Pago
-        </button>
-    </form>
+        <h2 class="mb-3 text-center">Pago de Reserva</h2>
+
+        <p><strong>Cancha:</strong> {{ reserva.cancha.nombre }}</p>
+        <p><strong>Fecha:</strong> {{ reserva.fecha }}</p>
+        <p><strong>Hora:</strong> {{ reserva.hora }}</p>
+        <p><strong>Total a pagar:</strong> ${{ reserva.cancha.precio }}</p>
+
+        <hr>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <label class="form-label">Número de tarjeta</label>
+            <input type="text" name="tarjeta" maxlength="16" class="form-control" required>
+
+            <label class="form-label mt-3">Código de seguridad (CVV)</label>
+            <input type="text" name="cvv" maxlength="3" class="form-control" required>
+
+            <label class="form-label mt-3">Correo para enviar comprobante</label>
+            <input type="email" name="correo" class="form-control" required>
+
+            <button class="btn btn-success w-100 mt-4">
+                Confirmar Pago
+            </button>
+        </form>
+
+        <a href="/" class="btn btn-link mt-3 w-100">Volver</a>
+
+    </div>
 
 </div>
-
-<a href="/" class="btn btn-link mt-3">Volver</a>
 
 {% endblock %}
