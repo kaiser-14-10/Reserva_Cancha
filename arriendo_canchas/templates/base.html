@@ -46,7 +46,11 @@
                     Mis reservas
                 </a>
 
-             <a href="{% url 'logout' %}">Cerrar sesión</a>
+                <form action="{% url 'logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit">Cerrar sesión</button>
+            </form>
+
 
 
                 {% else %}

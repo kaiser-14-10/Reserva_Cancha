@@ -2,6 +2,7 @@
 {% block title %}Mis Reservas{% endblock %}
 {% block content %}
 <h2 class="mb-4">Mis Reservas</h2>
+
 <table class="table table-bordered table-striped shadow-sm">
   <thead class="table-success">
     <tr>
@@ -19,18 +20,25 @@
       <td>{{ r.fecha }}</td>
       <td>{{ r.hora }}</td>
       <td>{{ r.estado }}</td>
+
       <td>
+        {% if r.estado == "Pendiente" %}
+          <a href="{% url 'pago' r.id %}" class="btn btn-warning btn-sm">Pagar</a>
+        {% endif %}
+
         {% if r.estado != "Cancelado" %}
-        <a href="{% url 'cancelar' r.id %}" class="btn btn-danger btn-sm">Cancelar</a>
-        {% else %}
-        -
+          <a href="{% url 'cancelar' r.id %}" class="btn btn-danger btn-sm ms-1">Cancelar</a>
         {% endif %}
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="5" class="text-center">No tienes reservas.</td></tr>
+    <tr>
+      <td colspan="5" class="text-center">No tienes reservas.</td>
+    </tr>
     {% endfor %}
   </tbody>
 </table>
+
 <a href="/" class="btn btn-link">Volver</a>
 {% endblock %}
+

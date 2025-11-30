@@ -188,10 +188,9 @@ def calendario(request):
 
 
 @login_required
-def pago(request):
-    return render(request, "pago.html")
+def pago(request, reserva_id):
+    reserva = get_object_or_404(Reserva, id=reserva_id, usuario=request.user)
+    return render(request, "pago.html", {"reserva": reserva})
 
 
-def logout_view(request):
-    logout(request)
-    return redirect(request.META.get("HTTP_REFERER", "home"))
+

@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models 
 from django.contrib.auth.models import User
 
 class Cancha(models.Model):
@@ -10,16 +10,24 @@ class Cancha(models.Model):
     def __str__(self):
         return self.nombre
 
+
 class Reserva(models.Model):
-    ESTADOS = [('Reservado', 'Reservado'), ('Cancelado', 'Cancelado')]
+
+    ESTADOS = [
+        ("Pendiente", "Pendiente"),
+        ("Pagado", "Pagado"),
+        ("Cancelado", "Cancelado"),
+    ]
+
     cancha = models.ForeignKey(Cancha, on_delete=models.CASCADE)
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     fecha = models.DateField()
     hora = models.TimeField()
-    estado = models.CharField(max_length=20, choices=ESTADOS, default='Reservado')
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
 
     def __str__(self):
         return f"{self.cancha} - {self.fecha} {self.hora}"
+
 
 class Log(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -41,6 +49,4 @@ class FechasNoDisponibles(models.Model):
         return f"{self.cancha.nombre} — {self.fecha_inicio} → {self.fecha_fin}"
 
     def contiene(self, fecha_obj):
-        """Devuelve True si fecha_obj (date) está entre inicio y fin (inclusive)."""
         return self.fecha_inicio <= fecha_obj <= self.fecha_fin
-

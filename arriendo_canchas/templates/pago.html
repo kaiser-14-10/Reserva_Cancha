@@ -1,6 +1,24 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2 class="mb-4">Administración de Pago</h2>
-<p>Este es un módulo de pago simulado. Aquí irá tu integración real más adelante.</p>
-<a href="/" class="btn btn-success">Volver al inicio</a>
+
+<h2 class="mb-4">Pago de Reserva</h2>
+
+<div class="card p-4 shadow-sm">
+
+    <p><strong>Cancha:</strong> {{ reserva.cancha.nombre }}</p>
+    <p><strong>Fecha:</strong> {{ reserva.fecha }}</p>
+    <p><strong>Hora:</strong> {{ reserva.hora }}</p>
+    <p><strong>Total a pagar:</strong> ${{ reserva.cancha.precio }}</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <button class="btn btn-success w-100 mt-3">
+            Confirmar Pago
+        </button>
+    </form>
+
+</div>
+
+<a href="/" class="btn btn-link mt-3">Volver</a>
+
 {% endblock %}

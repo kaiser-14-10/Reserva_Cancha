@@ -1,18 +1,39 @@
 {% extends 'base.html' %}
 {% block title %}Reservar Cancha{% endblock %}
+
 {% block content %}
 <h2 class="mb-4">Reservar: {{ cancha.nombre }}</h2>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
 <form method="post" class="card p-4 shadow-sm">
-  {% csrf_token %}
-  <div class="mb-3">
-    <label class="form-label">Fecha:</label>
-    <input type="date" name="fecha" class="form-control" required>
-  </div>
-  <div class="mb-3">
-    <label class="form-label">Hora:</label>
-    <input type="time" name="hora" class="form-control" required>
-  </div>
-  <button type="submit" class="btn btn-success w-100">Confirmar reserva</button>
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label class="form-label fw-bold">Fecha disponible:</label>
+        <select name="fecha" class="form-select" required>
+            <option value="" selected disabled>Selecciona una fecha</option>
+
+            {% for d in dias_mes %}
+                {% if not d.bloqueado and not d.pasado and not d.fuera_limite %}
+                    <option value="{{ d.fecha }}">{{ d.fecha }}</option>
+                {% endif %}
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-bold">Hora:</label>
+        <input type="time" class="form-control" name="hora" required>
+    </div>
+
+    <button type="submit" class="btn btn-success w-100">
+        Confirmar reserva
+    </button>
 </form>
+
 <a href="/" class="btn btn-link mt-3">Volver</a>
 {% endblock %}
+
