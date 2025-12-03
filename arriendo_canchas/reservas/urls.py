@@ -15,6 +15,7 @@ urlpatterns = [
     path("register/", views.register, name="register"),
     path('pago/<int:reserva_id>/', views.pago, name='pago'),
     path('pago-exitoso/', views.pago_exitoso, name='pago_exitoso'),
+    path("api/horas_ocupadas/", views.api_horas_ocupadas, name="api_horas_ocupadas"),
 
 
 
