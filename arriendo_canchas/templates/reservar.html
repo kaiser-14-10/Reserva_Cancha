@@ -1,37 +1,69 @@
 {% extends 'base.html' %}
-{% block title %}Reservar Cancha{% endblock %}
+{% block title %}Reservar: {{ cancha.nombre }}{% endblock %}
 {% block content %}
 
 <h2 class="mb-4">Reservar: {{ cancha.nombre }}</h2>
 
 <style>
-.dia {
-    padding: 8px;
-    display: inline-block;
-    margin: 3px;
+.dia, .hora-box {
+    padding: 10px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    margin: 4px;
     border: 1px solid #ccc;
-    border-radius: 6px;
-    width: 40px;
-    text-align: center;
+    border-radius: 8px;
+    width: 55px;
+    height: 38px;
     cursor: pointer;
+    transition: 0.2s;
+    font-weight: 500;
 }
+
+.dia { width: 40px; }
+
+.dia:hover, .hora-box:hover { transform: scale(1.08); }
+
 .bloq { background: #ff4d4d; color: white; cursor:not-allowed; }
 .pasado { opacity: 0.4; cursor:not-allowed; }
 .limite { background: #ffaa2b; }
-.selected { background: #198754; color: white; }
+
+.selected { background: #198754; color: white !important; }
+
+.horas-group {
+    margin-top: 10px;
+}
+
+.horas-title {
+    font-weight: bold;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    font-size: 1.1rem;
+}
+
+.hora-ocupada {
+    background: #ff4d4d;
+    color: white;
+    cursor: not-allowed;
+}
+
+#horasContainer {
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.7);
+}
 </style>
 
-<h5>Días del mes</h5>
+<h5 class="mb-2">Días del mes</h5>
 
 <div class="mb-3">
     {% for d in dias_mes %}
         <div class="dia
             {% if d.bloqueado %}bloq{% endif %}
             {% if d.pasado %}pasado{% endif %}
-            {% if d.fuera_limite %}limite{% endif %}"
-            
-            data-fecha="{{ d.fecha|date:'Y-m-d' }}"
-        >
+            {% if d.fuera_limite %}limite{% endif %}
+        "
+        data-fecha="{{ d.fecha|date:'Y-m-d' }}">
             {{ d.fecha.day }}
         </div>
     {% endfor %}
@@ -45,23 +77,18 @@
     {% csrf_token %}
 
     <div class="mb-3">
-        <label class="form-label">Fecha seleccionada:</label>
-        <input type="date" 
-            name="fecha" 
-            id="fecha_input" 
-            class="form-control" 
-            required 
-            onkeydown="return false"
-        >
+        <label class="form-label fw-bold">Fecha seleccionada:</label>
+        <input type="date"
+            name="fecha"
+            id="fecha_input"
+            class="form-control"
+            required>
     </div>
 
     <div class="mb-3">
-        <label class="form-label">Hora (intervalos de 30 min):</label>
-        <select name="hora" class="form-control" required>
-            {% for h in horas %}
-                <option value="{{ h }}">{{ h }}</option>
-            {% endfor %}
-        </select>
+        <label class="form-label fw-bold">Horas disponibles:</label>
+        <div id="horasContainer"></div>
+        <input type="hidden" name="hora" id="hora_input" required>
     </div>
 
     <button type="submit" class="btn btn-success w-100">Confirmar reserva</button>
@@ -69,22 +96,106 @@
 
 <a href="/" class="btn btn-link mt-3">Volver</a>
 
+
 <script>
+// Horas desde backend
+const horasBackend = JSON.parse('{{ horas_json|safe }}');
+let horasReservadas = {};
+
+// Separar horas en categorías
+function clasificarHoras(lista) {
+    let mañana = [];
+    let tarde = [];
+    let noche = [];
+
+    lista.forEach(h => {
+        let hora = parseInt(h.split(":")[0]);
+
+        if (hora < 12) mañana.push(h);
+        else if (hora < 18) tarde.push(h);
+        else noche.push(h);
+    });
+
+    return { mañana, tarde, noche };
+}
+
+// Cargar horas cuando haces clic en un día
 document.querySelectorAll(".dia").forEach(dia => {
     dia.addEventListener("click", () => {
 
-        if (dia.classList.contains("bloq") ||
-            dia.classList.contains("pasado")) {
-            return;
-        }
+        if (dia.classList.contains("bloq") || dia.classList.contains("pasado")) return;
 
         document.querySelectorAll(".dia").forEach(d => d.classList.remove("selected"));
-
         dia.classList.add("selected");
 
-        document.getElementById("fecha_input").value = dia.dataset.fecha;
+        const fecha = dia.dataset.fecha;
+        document.getElementById("fecha_input").value = fecha;
+
+        cargarHoras(fecha);
     });
 });
+
+// Cargar horas cuando cambias el input de fecha
+document.getElementById("fecha_input").addEventListener("change", function () {
+    const fecha = this.value;
+
+    document.querySelectorAll(".dia").forEach(d => d.classList.remove("selected"));
+    const diaCalendario = document.querySelector(`.dia[data-fecha="${fecha}"]`);
+    if (diaCalendario) diaCalendario.classList.add("selected");
+
+    cargarHoras(fecha);
+});
+
+// Petición AJAX para horas ocupadas
+function cargarHoras(fecha) {
+    fetch(`/api/horas_ocupadas/?fecha=${fecha}&cancha={{ cancha.id }}`)
+        .then(res => res.json())
+        .then(data => {
+            horasReservadas = data.ocupadas;
+            renderizarHoras();
+        });
+}
+
+// Dibujar horas
+function renderizarHoras() {
+    const cont = document.getElementById("horasContainer");
+    cont.innerHTML = "";
+
+    const grupos = clasificarHoras(horasBackend);
+
+    function crearGrupo(titulo, lista) {
+        const title = document.createElement("div");
+        title.classList.add("horas-title");
+        title.textContent = titulo;
+        cont.appendChild(title);
+
+        const group = document.createElement("div");
+        group.classList.add("horas-group");
+
+        lista.forEach(h => {
+            const box = document.createElement("div");
+            box.classList.add("hora-box");
+            box.textContent = h;
+
+            if (horasReservadas.includes(h)) {
+                box.classList.add("hora-ocupada");
+            } else {
+                box.addEventListener("click", () => {
+                    document.querySelectorAll(".hora-box").forEach(x => x.classList.remove("selected"));
+                    box.classList.add("selected");
+                    document.getElementById("hora_input").value = h;
+                });
+            }
+            group.appendChild(box);
+        });
+
+        cont.appendChild(group);
+    }
+
+    crearGrupo("Mañana", grupos.mañana);
+    crearGrupo("Tarde", grupos.tarde);
+    crearGrupo("Noche", grupos.noche);
+}
 </script>
 
 {% endblock %}
