@@ -196,6 +196,19 @@ function renderizarHoras() {
     crearGrupo("Tarde", grupos.tarde);
     crearGrupo("Noche", grupos.noche);
 }
+
+// ESTO VA FUERA de renderizarHoras
+window.addEventListener('DOMContentLoaded', () => {
+    const firstDia = document.querySelector(
+        '.dia:not(.bloq):not(.pasado):not(.limite)'
+    );
+    if (firstDia) {
+        firstDia.classList.add('selected');
+        const fecha = firstDia.dataset.fecha;
+        document.getElementById('fecha_input').value = fecha;
+        cargarHoras(fecha);
+    }
+});
 </script>
 
 {% endblock %}
