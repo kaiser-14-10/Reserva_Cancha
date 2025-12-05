@@ -8,7 +8,7 @@
     <tr>
       <th>Cancha</th>
       <th>Fecha</th>
-      <th>Hora</th>
+      <th>Horario</th>
       <th>Estado</th>
       <th>Acción</th>
     </tr>
@@ -18,7 +18,7 @@
     <tr>
       <td>{{ r.cancha.nombre }}</td>
       <td>{{ r.fecha }}</td>
-      <td>{{ r.hora }}</td>
+      <td>{{ r.hora_inicio }} - {{ r.hora_fin }}</td>
       <td>{{ r.estado }}</td>
 
       <td>
@@ -40,5 +40,5 @@
 </table>
 
 <a href="/" class="btn btn-link">Volver</a>
-{% endblock %}
 
+{% endblock %}
