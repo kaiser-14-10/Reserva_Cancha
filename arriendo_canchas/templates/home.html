@@ -25,40 +25,42 @@
     <div class="col-md-4 mb-3">
         <div class="card shadow-sm">
             <div class="card-body">
+                {% if cancha.imagen %}
+    <img src="{{ cancha.imagen.url }}" class="img-fluid mb-2" style="border-radius:10px;">
+{% endif %}
 
-                <h5 class="card-title">{{ cancha.nombre }}</h5>
-                <p class="card-text">Categoría: {{ cancha.categoria.nombre }}</p>
-                <p class="card-text text-success fw-bold">${{ cancha.precio }}</p>
+<h5 class="card-title">{{ cancha.nombre }}</h5>
+<p class="card-text">Categoría: {{ cancha.categoria.nombre }}</p>
+<p class="card-text text-success fw-bold">${{ cancha.precio }}</p>
 
-                {% if cancha.bloqueo %}
-                    <p class="text-danger fw-bold">
-                        ⛔ Cancha cerrada
-                    </p>
+{% if cancha.bloqueo %}
+    <p class="text-danger fw-bold">⛔ No disponible</p>
+    <p class="text-muted">
+        <strong>Cerrada:</strong> {{ cancha.bloqueo.fecha_inicio }} → {{ cancha.bloqueo.fecha_fin }}
+    </p>
 
-                    <p class="text-muted">
-                        <strong>Del:</strong> {{ cancha.bloqueo.fecha_inicio }}<br>
-                        <strong>Al:</strong> {{ cancha.bloqueo.fecha_fin }}
-                    </p>
+    {% if cancha.bloqueo.motivo %}
+        <p class="text-muted"><strong>Motivo:</strong> {{ cancha.bloqueo.motivo }}</p>
+    {% endif %}
 
-                    {% if cancha.bloqueo.motivo %}
-                        <p class="text-muted"><strong>Motivo:</strong> {{ cancha.bloqueo.motivo }}</p>
-                    {% endif %}
+    <button class="btn btn-danger w-100" disabled>
+        No disponible
+    </button>
 
-                    <button class="btn btn-danger w-100" disabled>
-                        No disponible
-                    </button>
+{% else %}
+    <p class="text-success fw-bold">✔ Disponible</p>
 
-                {% else %}
-                    {% if user.is_authenticated %}
-                        <a href="{% url 'reservar' cancha.id %}" class="btn btn-success w-100">
-                            Reservar
-                        </a>
-                    {% else %}
-                        <a href="{% url 'login' %}" class="btn btn-secondary w-100">
-                            Inicia sesión para reservar
-                        </a>
-                    {% endif %}
-                {% endif %}
+    {% if user.is_authenticated %}
+        <a href="{% url 'reservar' cancha.id %}" class="btn btn-success w-100">
+            Reservar
+        </a>
+    {% else %}
+        <a href="{% url 'login' %}" class="btn btn-secondary w-100">
+            Inicia sesión para reservar
+        </a>
+    {% endif %}
+{% endif %}
+
 
             </div>
         </div>

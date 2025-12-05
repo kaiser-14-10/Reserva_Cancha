@@ -14,9 +14,11 @@ class Cancha(models.Model):
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     precio = models.DecimalField(max_digits=8, decimal_places=2)
     disponible = models.BooleanField(default=True)
+    imagen = models.ImageField(upload_to="canchas/", blank=True, null=True) 
 
     def __str__(self):
         return f"{self.nombre} ({self.categoria})"
+
 
 
 class Reserva(models.Model):

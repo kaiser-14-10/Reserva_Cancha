@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Cancha, Categoria, Reserva, FechasNoDisponibles
+from .models import Cancha, Categoria, Reserva, FechasNoDisponibles, Log
 
 @admin.register(Cancha)
 class CanchaAdmin(admin.ModelAdmin):

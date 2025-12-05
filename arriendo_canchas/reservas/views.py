@@ -20,7 +20,7 @@ def home(request):
     else:
         canchas = Cancha.objects.all()
 
-    # Agregar bloqueo activo a cada cancha
+    
     for c in canchas:
         bloqueo = FechasNoDisponibles.objects.filter(
             cancha=c,
