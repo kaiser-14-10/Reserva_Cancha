@@ -19,9 +19,7 @@
     transition: 0.2s;
     font-weight: 500;
 }
-
 .dia { width: 40px; }
-
 .dia:hover, .hora-box:hover { transform: scale(1.08); }
 
 .bloq { background: #ff4d4d; color: white; cursor:not-allowed; }
@@ -52,22 +50,34 @@
     border-radius: 8px;
     background: rgba(255,255,255,0.7);
 }
+
+#mesNavigator {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    align-items: center;
+}
+#mesNavigator button {
+    cursor: pointer;
+}
+
+#calendarioDias {
+    display:flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 8px;
+}
 </style>
 
-<h5 class="mb-2">Días del mes</h5>
-
-<div class="mb-3">
-    {% for d in dias_mes %}
-        <div class="dia
-            {% if d.bloqueado %}bloq{% endif %}
-            {% if d.pasado %}pasado{% endif %}
-            {% if d.fuera_limite %}limite{% endif %}
-        "
-        data-fecha="{{ d.fecha|date:'Y-m-d' }}">
-            {{ d.fecha.day }}
-        </div>
-    {% endfor %}
+<div id="mesNavigator" class="mb-3">
+    <button id="prevMes" class="btn btn-secondary">&lt; Mes anterior</button>
+    <div id="mesActual" style="font-weight:bold;"></div>
+    <button id="nextMes" class="btn btn-secondary">Mes siguiente &gt;</button>
 </div>
+
+<div id="calendarioDias" class="mb-3"></div>
 
 {% if error %}
 <div class="alert alert-danger">{{ error }}</div>
@@ -75,14 +85,9 @@
 
 <form method="post" class="card p-4 shadow-sm">
     {% csrf_token %}
-
     <div class="mb-3">
         <label class="form-label fw-bold">Fecha seleccionada:</label>
-        <input type="date"
-            name="fecha"
-            id="fecha_input"
-            class="form-control"
-            required>
+        <input type="date" name="fecha" id="fecha_input" class="form-control" required>
     </div>
 
     <div class="mb-3">
@@ -96,71 +101,86 @@
 
 <a href="/" class="btn btn-link mt-3">Volver</a>
 
-
 <script>
-// Horas desde backend
 const horasBackend = JSON.parse('{{ horas_json|safe }}');
 let horasReservadas = {};
+const bloqueos = JSON.parse('{{ bloqueos_json|safe }}');
 
-// Separar horas en categorías
-function clasificarHoras(lista) {
-    let mañana = [];
-    let tarde = [];
-    let noche = [];
+let hoy = new Date();
+let mesActual = hoy.getMonth();
+let anioActual = hoy.getFullYear();
 
-    lista.forEach(h => {
-        let hora = parseInt(h.split(":")[0]);
+let horaInicioSeleccionada = null;
+let horaFinSeleccionada = null;
 
-        if (hora < 12) mañana.push(h);
-        else if (hora < 18) tarde.push(h);
-        else noche.push(h);
-    });
+function generarDias(mes, anio) {
+    const diasContainer = document.getElementById("calendarioDias");
+    diasContainer.innerHTML = "";
 
-    return { mañana, tarde, noche };
+    const primerDia = new Date(anio, mes, 1);
+    const ultimoDia = new Date(anio, mes + 1, 0);
+    const hoyLimite = new Date();
+    hoyLimite.setHours(0,0,0,0);
+
+    for (let d = 1; d <= ultimoDia.getDate(); d++) {
+        const fecha = new Date(anio, mes, d);
+        const iso = fecha.toISOString().slice(0,10);
+
+        const div = document.createElement("div");
+        div.classList.add("dia");
+        if (bloqueos.includes(iso)) div.classList.add("bloq");
+        if (fecha < hoyLimite) div.classList.add("pasado");
+
+        div.dataset.fecha = iso;
+        div.textContent = d;
+
+        div.addEventListener("click", () => seleccionarDia(div, iso));
+        diasContainer.appendChild(div);
+    }
+
+    document.getElementById("mesActual").textContent =
+        primerDia.toLocaleString('default', { month: 'long', year: 'numeric' });
 }
 
-// Cargar horas cuando haces clic en un día
-document.querySelectorAll(".dia").forEach(dia => {
-    dia.addEventListener("click", () => {
-
-        if (dia.classList.contains("bloq") || dia.classList.contains("pasado")) return;
-
-        document.querySelectorAll(".dia").forEach(d => d.classList.remove("selected"));
-        dia.classList.add("selected");
-
-        const fecha = dia.dataset.fecha;
-        document.getElementById("fecha_input").value = fecha;
-
-        cargarHoras(fecha);
-    });
-});
-
-// Cargar horas cuando cambias el input de fecha
-document.getElementById("fecha_input").addEventListener("change", function () {
-    const fecha = this.value;
+function seleccionarDia(div, fecha) {
+    if (div.classList.contains("bloq") || div.classList.contains("pasado")) return;
 
     document.querySelectorAll(".dia").forEach(d => d.classList.remove("selected"));
-    const diaCalendario = document.querySelector(`.dia[data-fecha="${fecha}"]`);
-    if (diaCalendario) diaCalendario.classList.add("selected");
-
+    div.classList.add("selected");
+    document.getElementById("fecha_input").value = fecha;
+    horaInicioSeleccionada = null;
+    horaFinSeleccionada = null;
     cargarHoras(fecha);
-});
+}
 
-// Petición AJAX para horas ocupadas
 function cargarHoras(fecha) {
     fetch(`/api/horas_ocupadas/?fecha=${fecha}&cancha={{ cancha.id }}`)
         .then(res => res.json())
         .then(data => {
-            horasReservadas = data.ocupadas;
+            horasReservadas = data.ocupadas || [];
+            renderizarHoras();
+        })
+        .catch(err => {
+            console.error(err);
+            horasReservadas = [];
             renderizarHoras();
         });
 }
 
-// Dibujar horas
+function clasificarHoras(lista) {
+    let manana = [], tarde = [], noche = [];
+    lista.forEach(h => {
+        let hora = parseInt(h.split(":")[0], 10);
+        if (hora < 12) manana.push(h);
+        else if (hora < 18) tarde.push(h);
+        else noche.push(h);
+    });
+    return {mañana: manana, tarde: tarde, noche: noche};
+}
+
 function renderizarHoras() {
     const cont = document.getElementById("horasContainer");
     cont.innerHTML = "";
-
     const grupos = clasificarHoras(horasBackend);
 
     function crearGrupo(titulo, lista) {
@@ -180,12 +200,9 @@ function renderizarHoras() {
             if (horasReservadas.includes(h)) {
                 box.classList.add("hora-ocupada");
             } else {
-                box.addEventListener("click", () => {
-                    document.querySelectorAll(".hora-box").forEach(x => x.classList.remove("selected"));
-                    box.classList.add("selected");
-                    document.getElementById("hora_input").value = h;
-                });
+                box.addEventListener("click", () => seleccionarRango(box, h));
             }
+
             group.appendChild(box);
         });
 
@@ -197,17 +214,70 @@ function renderizarHoras() {
     crearGrupo("Noche", grupos.noche);
 }
 
-// ESTO VA FUERA de renderizarHoras
-window.addEventListener('DOMContentLoaded', () => {
-    const firstDia = document.querySelector(
-        '.dia:not(.bloq):not(.pasado):not(.limite)'
-    );
-    if (firstDia) {
-        firstDia.classList.add('selected');
-        const fecha = firstDia.dataset.fecha;
-        document.getElementById('fecha_input').value = fecha;
-        cargarHoras(fecha);
+function seleccionarRango(box, hora) {
+    const horaInput = document.getElementById("hora_input");
+
+    if (!horaInicioSeleccionada || (horaInicioSeleccionada && horaFinSeleccionada)) {
+        horaInicioSeleccionada = hora;
+        horaFinSeleccionada = null;
+    } else {
+        const horasOrdenadas = [...horasBackend].sort();
+        const inicioIndex = horasOrdenadas.indexOf(horaInicioSeleccionada);
+        const finIndex = horasOrdenadas.indexOf(hora);
+
+        if (finIndex < inicioIndex) {
+            horaFinSeleccionada = horaInicioSeleccionada;
+            horaInicioSeleccionada = hora;
+        } else {
+            horaFinSeleccionada = hora;
+        }
     }
+
+    document.querySelectorAll(".hora-box").forEach(b => b.classList.remove("selected"));
+    if (horaInicioSeleccionada) {
+        const horasOrdenadas = [...horasBackend].sort();
+        const inicioIndex = horasOrdenadas.indexOf(horaInicioSeleccionada);
+        const finIndex = horaFinSeleccionada ? horasOrdenadas.indexOf(horaFinSeleccionada) : inicioIndex;
+
+        for (let i = inicioIndex; i <= finIndex; i++) {
+            const h = horasOrdenadas[i];
+            document.querySelectorAll(".hora-box").forEach(b => {
+                if (b.textContent === h && !b.classList.contains("hora-ocupada")) {
+                    b.classList.add("selected");
+                }
+            });
+        }
+
+        horaInput.value = horaInicioSeleccionada + "-" + (horaFinSeleccionada || horaInicioSeleccionada);
+    }
+}
+
+document.getElementById("prevMes").addEventListener("click", () => {
+    mesActual--;
+    if (mesActual < 0) { mesActual = 11; anioActual--; }
+    generarDias(mesActual, anioActual);
+});
+
+document.getElementById("nextMes").addEventListener("click", () => {
+    mesActual++;
+    if (mesActual > 11) { mesActual = 0; anioActual++; }
+    generarDias(mesActual, anioActual);
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+    generarDias(mesActual, anioActual);
+
+    setTimeout(() => {
+        const firstDia = document.querySelector('.dia:not(.bloq):not(.pasado)');
+        if (firstDia) {
+            firstDia.classList.add('selected');
+            const fecha = firstDia.dataset.fecha;
+            document.getElementById('fecha_input').value = fecha;
+            cargarHoras(fecha);
+        } else {
+            document.getElementById('horasContainer').innerHTML = "<div class='text-muted'>No hay días disponibles en este mes.</div>";
+        }
+    }, 0);
 });
 </script>
 
