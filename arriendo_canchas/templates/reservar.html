@@ -23,14 +23,12 @@
 .dia:hover, .hora-box:hover { transform: scale(1.08); }
 
 .bloq { background: #ff4d4d; color: white; cursor:not-allowed; }
-.pasado { opacity: 0.4; cursor:not-allowed; }
+.pasado { opacity: 0.4; cursor:not-allowed; background:#d6d6d6; }
 .limite { background: #ffaa2b; }
 
 .selected { background: #198754; color: white !important; }
 
-.horas-group {
-    margin-top: 10px;
-}
+.horas-group { margin-top: 10px; }
 
 .horas-title {
     font-weight: bold;
@@ -40,7 +38,7 @@
 }
 
 .hora-ocupada {
-    background: #ff4d4d;
+    background: #ff4d4d !important;
     color: white;
     cursor: not-allowed;
 }
@@ -56,9 +54,6 @@
     justify-content: space-between;
     margin-bottom: 10px;
     align-items: center;
-}
-#mesNavigator button {
-    cursor: pointer;
 }
 
 #calendarioDias {
@@ -102,9 +97,12 @@
 <a href="/" class="btn btn-link mt-3">Volver</a>
 
 <script>
-const horasBackend = JSON.parse('{{ horas_json|safe }}');
+
+// 🔥 AHORA SÍ FUNCIONA CORRECTAMENTE
+const horasBackend = JSON.parse('{{ horas_json|escapejs }}');
+const bloqueos = JSON.parse('{{ bloqueos_json|escapejs }}');
+
 let horasReservadas = {};
-const bloqueos = JSON.parse('{{ bloqueos_json|safe }}');
 
 let hoy = new Date();
 let mesActual = hoy.getMonth();
@@ -128,13 +126,18 @@ function generarDias(mes, anio) {
 
         const div = document.createElement("div");
         div.classList.add("dia");
+
+        // Feriado o bloqueo
         if (bloqueos.includes(iso)) div.classList.add("bloq");
+
+        // Día ya pasado
         if (fecha < hoyLimite) div.classList.add("pasado");
 
         div.dataset.fecha = iso;
         div.textContent = d;
 
         div.addEventListener("click", () => seleccionarDia(div, iso));
+
         diasContainer.appendChild(div);
     }
 
@@ -147,9 +150,11 @@ function seleccionarDia(div, fecha) {
 
     document.querySelectorAll(".dia").forEach(d => d.classList.remove("selected"));
     div.classList.add("selected");
+
     document.getElementById("fecha_input").value = fecha;
     horaInicioSeleccionada = null;
     horaFinSeleccionada = null;
+
     cargarHoras(fecha);
 }
 
@@ -158,13 +163,22 @@ function cargarHoras(fecha) {
         .then(res => res.json())
         .then(data => {
             horasReservadas = data.ocupadas || [];
-            renderizarHoras();
+            renderizarHoras(fecha);
         })
         .catch(err => {
             console.error(err);
             horasReservadas = [];
-            renderizarHoras();
+            renderizarHoras(fecha);
         });
+}
+
+function esHoraPasada(fechaISO, horaTexto) {
+    const ahora = new Date();
+    const [h, m] = horaTexto.split(":").map(Number);
+
+    const fechaHora = new Date(fechaISO + "T" + horaTexto + ":00");
+
+    return fechaHora < ahora;
 }
 
 function clasificarHoras(lista) {
@@ -178,7 +192,7 @@ function clasificarHoras(lista) {
     return {mañana: manana, tarde: tarde, noche: noche};
 }
 
-function renderizarHoras() {
+function renderizarHoras(fecha) {
     const cont = document.getElementById("horasContainer");
     cont.innerHTML = "";
     const grupos = clasificarHoras(horasBackend);
@@ -197,8 +211,14 @@ function renderizarHoras() {
             box.classList.add("hora-box");
             box.textContent = h;
 
+            // Ocupada
             if (horasReservadas.includes(h)) {
                 box.classList.add("hora-ocupada");
+
+            // Hora pasada
+            } else if (esHoraPasada(fecha, h)) {
+                box.classList.add("pasado");
+
             } else {
                 box.addEventListener("click", () => seleccionarRango(box, h));
             }
@@ -234,6 +254,7 @@ function seleccionarRango(box, hora) {
     }
 
     document.querySelectorAll(".hora-box").forEach(b => b.classList.remove("selected"));
+
     if (horaInicioSeleccionada) {
         const horasOrdenadas = [...horasBackend].sort();
         const inicioIndex = horasOrdenadas.indexOf(horaInicioSeleccionada);
@@ -242,7 +263,10 @@ function seleccionarRango(box, hora) {
         for (let i = inicioIndex; i <= finIndex; i++) {
             const h = horasOrdenadas[i];
             document.querySelectorAll(".hora-box").forEach(b => {
-                if (b.textContent === h && !b.classList.contains("hora-ocupada")) {
+                if (b.textContent === h &&
+                    !b.classList.contains("hora-ocupada") &&
+                    !b.classList.contains("pasado")) {
+
                     b.classList.add("selected");
                 }
             });
@@ -275,10 +299,12 @@ window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('fecha_input').value = fecha;
             cargarHoras(fecha);
         } else {
-            document.getElementById('horasContainer').innerHTML = "<div class='text-muted'>No hay días disponibles en este mes.</div>";
+            document.getElementById('horasContainer').innerHTML =
+                "<div class='text-muted'>No hay días disponibles en este mes.</div>";
         }
     }, 0);
 });
+
 </script>
 
 {% endblock %}
