@@ -10,6 +10,7 @@ import json
 
 
 
+
 FERIADOS_BASE = [
     ("01-01"),
     ("04-18"),
@@ -27,6 +28,7 @@ FERIADOS_BASE = [
     ("12-25"),
 ]
 
+
 def generar_feriados():
     hoy = date.today()
     año_actual = hoy.year
@@ -36,6 +38,7 @@ def generar_feriados():
         feriados.append(f"{año_actual}-{base}")
         feriados.append(f"{año_siguiente}-{base}")
     return feriados
+
 
 FERIADOS_PREDETERMINADOS = generar_feriados()
 
@@ -65,6 +68,7 @@ def home(request):
     })
 
 
+
 def register(request):
     if request.method == "POST":
         form = UserCreationForm(request.POST)
@@ -75,6 +79,8 @@ def register(request):
     else:
         form = UserCreationForm()
     return render(request, "register.html", {"form": form})
+
+
 
 
 def api_horas_ocupadas(request):
@@ -101,6 +107,8 @@ def api_horas_ocupadas(request):
     return JsonResponse({"ocupadas": horas_ocupadas})
 
 
+
+
 @login_required
 def reservar(request, cancha_id):
     cancha = get_object_or_404(Cancha, id=cancha_id)
@@ -112,7 +120,6 @@ def reservar(request, cancha_id):
     todas_las_horas = horas_manana + horas_tarde + horas_noche
     horas_json = json.dumps(todas_las_horas)
 
-
     bloqueos_qs = FechasNoDisponibles.objects.filter(cancha=cancha)
     bloqueos_list = []
 
@@ -123,9 +130,7 @@ def reservar(request, cancha_id):
             current += timedelta(days=1)
 
     bloqueos_list.extend(FERIADOS_PREDETERMINADOS)
-
     bloqueos_json = json.dumps(bloqueos_list)
-
 
     if request.method == "POST":
         fecha_str = request.POST.get("fecha")
@@ -150,6 +155,19 @@ def reservar(request, cancha_id):
 
         hora_inicio_obj = datetime.strptime(hora_inicio_str, "%H:%M").time()
         hora_fin_obj = datetime.strptime(hora_fin_str, "%H:%M").time()
+
+        if fecha_obj == date.today():
+            ahora = datetime.now().time()
+            if hora_inicio_obj <= ahora:
+                return render(request, "reservar.html", {
+                    "cancha": cancha,
+                    "horas_json": horas_json,
+                    "horas_manana": horas_manana,
+                    "horas_tarde": horas_tarde,
+                    "horas_noche": horas_noche,
+                    "bloqueos_json": bloqueos_json,
+                    "error": "No puedes reservar una hora que ya pasó."
+                })
 
         if fecha_str in bloqueos_list:
             return render(request, "reservar.html", {
@@ -202,10 +220,14 @@ def reservar(request, cancha_id):
     })
 
 
+
+
 @login_required
 def mis_reservas(request):
     reservas = Reserva.objects.filter(usuario=request.user).order_by("-fecha", "-hora_inicio")
     return render(request, "mis_reservas.html", {"reservas": reservas})
+
+
 
 
 @login_required
@@ -216,15 +238,30 @@ def cancelar(request, id):
     return redirect("mis_reservas")
 
 
+
+
 @login_required
 def pago(request, reserva_id):
     reserva = get_object_or_404(Reserva, id=reserva_id, usuario=request.user)
+
+    if request.method == "POST":
+
+        reserva.estado = "Pagado"
+        reserva.save()
+
+        return redirect("pago_exitoso")
+
     return render(request, "pago.html", {"reserva": reserva})
+
+
 
 
 @login_required
 def pago_exitoso(request):
     return render(request, "pago_exitoso.html")
+
+
+
 
 
 @login_required
@@ -237,7 +274,6 @@ def calendario(request):
     dias = []
 
     for d in cal.itermonthdates(year, month):
-
         es_bloqueado = (
             FechasNoDisponibles.objects.filter(
                 fecha_inicio__lte=d,
