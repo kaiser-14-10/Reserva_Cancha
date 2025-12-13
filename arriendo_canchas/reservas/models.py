@@ -14,14 +14,13 @@ class Cancha(models.Model):
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     precio = models.DecimalField(max_digits=8, decimal_places=2)
     disponible = models.BooleanField(default=True)
-    imagen = models.ImageField(upload_to="canchas/", blank=True, null=True) 
+    imagen = models.ImageField(upload_to="canchas/", blank=True, null=True)
 
     def __str__(self):
         return f"{self.nombre} ({self.categoria})"
 
 
 class Reserva(models.Model):
-
     ESTADOS = [
         ("Pendiente", "Pendiente"),
         ("Pagado", "Pagado"),
@@ -46,8 +45,46 @@ class Log(models.Model):
     accion = models.CharField(max_length=200)
     fecha = models.DateTimeField(auto_now_add=True)
 
+class DiaBloqueado(models.Model):
+    cancha = models.ForeignKey(Cancha, on_delete=models.CASCADE)
+    fecha = models.DateField()
+    motivo = models.CharField(max_length=200, blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Día bloqueado"
+        verbose_name_plural = "Días bloqueados"
+        unique_together = ("cancha", "fecha")
+
+    def __str__(self):
+        return f"{self.cancha.nombre} — {self.fecha} (Bloqueado)"
+
+
+class HorasNoDisponibles(models.Model):
+    """
+    Bloqueo por horarios en una fecha concreta para una cancha.
+    Se asume que los intervalos serán múltiplos de 30 minutos (10:00, 10:30, 11:00, ...).
+    """
+    cancha = models.ForeignKey(Cancha, on_delete=models.CASCADE)
+    fecha = models.DateField()
+    hora_inicio = models.TimeField()
+    hora_fin = models.TimeField()
+    motivo = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "Hora no disponible"
+        verbose_name_plural = "Horas no disponibles"
+        ordering = ("-fecha", "cancha")
+
+    def __str__(self):
+        return f"{self.cancha.nombre} — {self.fecha} {self.hora_inicio}→{self.hora_fin}"
+
+
 
 class FechasNoDisponibles(models.Model):
+    """
+    Bloqueo por rango de días (día completo).
+    Si quieres bloquear días completos añades una entrada aquí.
+    """
     cancha = models.ForeignKey(Cancha, on_delete=models.CASCADE)
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
