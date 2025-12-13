@@ -20,13 +20,37 @@
     font-weight: 500;
 }
 .dia { width: 40px; }
+
 .dia:hover, .hora-box:hover { transform: scale(1.08); }
 
-.bloq { background: #ff4d4d; color: white; cursor:not-allowed; }
-.pasado { opacity: 0.4; cursor:not-allowed; background:#d6d6d6; }
-.limite { background: #ffaa2b; }
+.bloq-dia {
+    background: #ff4d4d !important;
+    color: white !important;
+    cursor:not-allowed;
+}
 
-.selected { background: #198754; color: white !important; }
+.bloq-hora {
+    background: #7a7a7a !important;
+    color: white !important;
+    cursor:not-allowed;
+}
+
+.pasado {
+    opacity: 0.4;
+    cursor:not-allowed;
+    background:#d6d6d6 !important;
+}
+
+.hora-ocupada {
+    background: #ff4d4d !important;
+    color: white !important;
+    cursor:not-allowed;
+}
+
+.selected {
+    background: #198754 !important;
+    color: white !important;
+}
 
 .horas-group { margin-top: 10px; }
 
@@ -37,23 +61,10 @@
     font-size: 1.1rem;
 }
 
-.hora-ocupada {
-    background: #ff4d4d !important;
-    color: white;
-    cursor: not-allowed;
-}
-
 #horasContainer {
     padding: 10px;
     border-radius: 8px;
     background: rgba(255,255,255,0.7);
-}
-
-#mesNavigator {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
-    align-items: center;
 }
 
 #calendarioDias {
@@ -64,21 +75,57 @@
     background: rgba(255,255,255,0.3);
     border-radius: 8px;
 }
+
+#mesNavigator {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+#mesActual {
+    font-size: 22px;
+    font-weight: bold;
+}
+
+.leyenda-lineal {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin-top: 15px;
+    font-size: 15px;
+}
+
+.cuadro {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    margin-right: 5px;
+    border-radius: 4px;
+}
+
+.cuadro.disponible { background: #198754; }
+.cuadro.ocupada { background: #ff4d4d; }
+.cuadro.bloq-hora { background: #7a7a7a; }
+.cuadro.bloq-dia { background: #ff4d4d; }
 </style>
 
+<!-- NAV MESES -->
 <div id="mesNavigator" class="mb-3">
     <button id="prevMes" class="btn btn-secondary">&lt; Mes anterior</button>
-    <div id="mesActual" style="font-weight:bold;"></div>
+    <div id="mesActual"></div>
     <button id="nextMes" class="btn btn-secondary">Mes siguiente &gt;</button>
 </div>
 
 <div id="calendarioDias" class="mb-3"></div>
 
-{% if error %}
-<div class="alert alert-danger">{{ error }}</div>
-{% endif %}
+<!-- LEYENDA GENERAL -->
+<div class="leyenda-lineal">
+    <span><span class="cuadro disponible"></span> Disponible</span>
+    <span><span class="cuadro bloq-dia"></span> Bloqueado/Feriado</span>
+</div>
 
-<form method="post" class="card p-4 shadow-sm">
+<form method="post" class="card p-4 shadow-sm mt-3">
     {% csrf_token %}
     <div class="mb-3">
         <label class="form-label fw-bold">Fecha seleccionada:</label>
@@ -86,8 +133,16 @@
     </div>
 
     <div class="mb-3">
-        <label class="form-label fw-bold">Horas disponibles:</label>
+        <label class="form-label fw-bold">Horas disponibles (elige un rango):</label>
+
         <div id="horasContainer"></div>
+
+        <!-- LEYENDA PARA HORAS -->
+        <div class="leyenda-lineal" style="margin-top: 10px;">
+            <span><span class="cuadro bloq-hora"></span> Bloqueado</span>
+            <span><span class="cuadro ocupada"></span> Ocupado</span>
+        </div>
+
         <input type="hidden" name="hora" id="hora_input" required>
     </div>
 
@@ -97,135 +152,141 @@
 <a href="/" class="btn btn-link mt-3">Volver</a>
 
 <script>
-
-// 🔥 AHORA SÍ FUNCIONA CORRECTAMENTE
 const horasBackend = JSON.parse('{{ horas_json|escapejs }}');
-const bloqueos = JSON.parse('{{ bloqueos_json|escapejs }}');
+const bloqueosDias = JSON.parse('{{ bloqueos_json|escapejs }}'); 
+const bloqueosHorasServer = JSON.parse('{{ bloqueos_horas_json|escapejs }}');
 
-let horasReservadas = {};
+let horasReservadas = [];
+let horasBloqueadasApi = [];
 
 let hoy = new Date();
 let mesActual = hoy.getMonth();
 let anioActual = hoy.getFullYear();
 
-let horaInicioSeleccionada = null;
-let horaFinSeleccionada = null;
+let inicioSel = null;
+let finSel = null;
+
+function esHoraPasada(fechaISO, hora) {
+    const ahora = new Date();
+    const fechaHora = new Date(fechaISO + "T" + hora + ":00");
+    return fechaHora < ahora;
+}
+
+function indexOfSlot(h){
+    return [...horasBackend].sort().indexOf(h);
+}
 
 function generarDias(mes, anio) {
-    const diasContainer = document.getElementById("calendarioDias");
-    diasContainer.innerHTML = "";
+    const cont = document.getElementById("calendarioDias");
+    cont.innerHTML = "";
 
-    const primerDia = new Date(anio, mes, 1);
-    const ultimoDia = new Date(anio, mes + 1, 0);
-    const hoyLimite = new Date();
-    hoyLimite.setHours(0,0,0,0);
+    const primer = new Date(anio, mes, 1);
+    const ultimo = new Date(anio, mes+1, 0);
 
-    for (let d = 1; d <= ultimoDia.getDate(); d++) {
+    const hoy0 = new Date();
+    hoy0.setHours(0,0,0,0);
+
+    for (let d=1; d<=ultimo.getDate(); d++) {
         const fecha = new Date(anio, mes, d);
         const iso = fecha.toISOString().slice(0,10);
 
         const div = document.createElement("div");
         div.classList.add("dia");
-
-        // Feriado o bloqueo
-        if (bloqueos.includes(iso)) div.classList.add("bloq");
-
-        // Día ya pasado
-        if (fecha < hoyLimite) div.classList.add("pasado");
-
-        div.dataset.fecha = iso;
         div.textContent = d;
+        div.dataset.fecha = iso;
+
+        if (bloqueosDias.includes(iso)) div.classList.add("bloq-dia");
+        if (fecha < hoy0) div.classList.add("pasado");
 
         div.addEventListener("click", () => seleccionarDia(div, iso));
-
-        diasContainer.appendChild(div);
+        cont.appendChild(div);
     }
 
     document.getElementById("mesActual").textContent =
-        primerDia.toLocaleString('default', { month: 'long', year: 'numeric' });
+        primer.toLocaleString("es-ES",{ month:"long",year:"numeric" });
 }
 
 function seleccionarDia(div, fecha) {
-    if (div.classList.contains("bloq") || div.classList.contains("pasado")) return;
+    if (div.classList.contains("bloq-dia") || div.classList.contains("pasado"))
+        return;
 
     document.querySelectorAll(".dia").forEach(d => d.classList.remove("selected"));
     div.classList.add("selected");
 
     document.getElementById("fecha_input").value = fecha;
-    horaInicioSeleccionada = null;
-    horaFinSeleccionada = null;
+
+    inicioSel = null;
+    finSel = null;
+    document.getElementById("hora_input").value = "";
 
     cargarHoras(fecha);
 }
 
 function cargarHoras(fecha) {
     fetch(`/api/horas_ocupadas/?fecha=${fecha}&cancha={{ cancha.id }}`)
-        .then(res => res.json())
-        .then(data => {
-            horasReservadas = data.ocupadas || [];
-            renderizarHoras(fecha);
-        })
-        .catch(err => {
-            console.error(err);
-            horasReservadas = [];
-            renderizarHoras(fecha);
-        });
+    .then(r=>r.json())
+    .then(data=>{
+        horasReservadas = data.ocupadas || [];
+        horasBloqueadasApi = data.bloqueadas || [];
+        renderizarHoras(fecha);
+    })
+    .catch(()=>{
+        horasReservadas = [];
+        horasBloqueadasApi = [];
+        renderizarHoras(fecha);
+    });
 }
 
-function esHoraPasada(fechaISO, horaTexto) {
-    const ahora = new Date();
-    const [h, m] = horaTexto.split(":").map(Number);
-
-    const fechaHora = new Date(fechaISO + "T" + horaTexto + ":00");
-
-    return fechaHora < ahora;
-}
-
-function clasificarHoras(lista) {
+function clasificarHoras(lista){
     let manana = [], tarde = [], noche = [];
-    lista.forEach(h => {
-        let hora = parseInt(h.split(":")[0], 10);
-        if (hora < 12) manana.push(h);
-        else if (hora < 18) tarde.push(h);
+    lista.forEach(h=>{
+        const hh = parseInt(h.split(":")[0]);
+        if (hh < 12) manana.push(h);
+        else if (hh < 18) tarde.push(h);
         else noche.push(h);
     });
-    return {mañana: manana, tarde: tarde, noche: noche};
+    return {mañana:manana, tarde:tarde, noche:noche};
 }
 
-function renderizarHoras(fecha) {
+function renderizarHoras(fecha){
     const cont = document.getElementById("horasContainer");
     cont.innerHTML = "";
+
     const grupos = clasificarHoras(horasBackend);
 
-    function crearGrupo(titulo, lista) {
+    const bloqueosHoras = bloqueosHorasServer[fecha] || [];
+    const setBloq = new Set([...bloqueosHoras, ...horasBloqueadasApi]);
+
+    function crearGrupo(nombre, lista){
         const title = document.createElement("div");
         title.classList.add("horas-title");
-        title.textContent = titulo;
-        cont.appendChild(title);
+        title.textContent = nombre;
 
         const group = document.createElement("div");
         group.classList.add("horas-group");
 
-        lista.forEach(h => {
+        lista.forEach(h=>{
             const box = document.createElement("div");
             box.classList.add("hora-box");
             box.textContent = h;
+            box.dataset.hora = h;
 
-            // Ocupada
-            if (horasReservadas.includes(h)) {
+            if (horasReservadas.includes(h))
                 box.classList.add("hora-ocupada");
 
-            // Hora pasada
-            } else if (esHoraPasada(fecha, h)) {
+            else if (setBloq.has(h))
+                box.classList.add("bloq-hora");
+
+            else if (esHoraPasada(fecha, h))
                 box.classList.add("pasado");
 
-            } else {
-                box.addEventListener("click", () => seleccionarRango(box, h));
-            }
+            else
+                box.addEventListener("click",()=>seleccionarRango(box,fecha));
 
             group.appendChild(box);
         });
 
+        cont.appendChild(title);
         cont.appendChild(group);
     }
 
@@ -234,77 +295,85 @@ function renderizarHoras(fecha) {
     crearGrupo("Noche", grupos.noche);
 }
 
-function seleccionarRango(box, hora) {
-    const horaInput = document.getElementById("hora_input");
+function seleccionarRango(box, fecha){
+    const hora = box.dataset.hora;
 
-    if (!horaInicioSeleccionada || (horaInicioSeleccionada && horaFinSeleccionada)) {
-        horaInicioSeleccionada = hora;
-        horaFinSeleccionada = null;
+    if (!inicioSel || (inicioSel && finSel)) {
+        inicioSel = hora;
+        finSel = null;
     } else {
-        const horasOrdenadas = [...horasBackend].sort();
-        const inicioIndex = horasOrdenadas.indexOf(horaInicioSeleccionada);
-        const finIndex = horasOrdenadas.indexOf(hora);
+        const ini = indexOfSlot(inicioSel);
+        const fin = indexOfSlot(hora);
 
-        if (finIndex < inicioIndex) {
-            horaFinSeleccionada = horaInicioSeleccionada;
-            horaInicioSeleccionada = hora;
+        if (fin < ini) {
+            finSel = inicioSel;
+            inicioSel = hora;
         } else {
-            horaFinSeleccionada = hora;
+            finSel = hora;
         }
     }
 
-    document.querySelectorAll(".hora-box").forEach(b => b.classList.remove("selected"));
-
-    if (horaInicioSeleccionada) {
-        const horasOrdenadas = [...horasBackend].sort();
-        const inicioIndex = horasOrdenadas.indexOf(horaInicioSeleccionada);
-        const finIndex = horaFinSeleccionada ? horasOrdenadas.indexOf(horaFinSeleccionada) : inicioIndex;
-
-        for (let i = inicioIndex; i <= finIndex; i++) {
-            const h = horasOrdenadas[i];
-            document.querySelectorAll(".hora-box").forEach(b => {
-                if (b.textContent === h &&
-                    !b.classList.contains("hora-ocupada") &&
-                    !b.classList.contains("pasado")) {
-
-                    b.classList.add("selected");
-                }
-            });
-        }
-
-        horaInput.value = horaInicioSeleccionada + "-" + (horaFinSeleccionada || horaInicioSeleccionada);
-    }
+    pintarSeleccion(fecha);
 }
 
-document.getElementById("prevMes").addEventListener("click", () => {
-    mesActual--;
-    if (mesActual < 0) { mesActual = 11; anioActual--; }
-    generarDias(mesActual, anioActual);
-});
+function pintarSeleccion(fecha){
+    document.querySelectorAll(".hora-box").forEach(b=>b.classList.remove("selected"));
 
-document.getElementById("nextMes").addEventListener("click", () => {
-    mesActual++;
-    if (mesActual > 11) { mesActual = 0; anioActual++; }
-    generarDias(mesActual, anioActual);
-});
+    if (!inicioSel) return;
 
-window.addEventListener('DOMContentLoaded', () => {
-    generarDias(mesActual, anioActual);
+    const orden = [...horasBackend].sort();
+    const i1 = orden.indexOf(inicioSel);
+    const i2 = finSel ? orden.indexOf(finSel) : i1;
 
-    setTimeout(() => {
-        const firstDia = document.querySelector('.dia:not(.bloq):not(.pasado)');
-        if (firstDia) {
-            firstDia.classList.add('selected');
-            const fecha = firstDia.dataset.fecha;
-            document.getElementById('fecha_input').value = fecha;
-            cargarHoras(fecha);
-        } else {
-            document.getElementById('horasContainer').innerHTML =
-                "<div class='text-muted'>No hay días disponibles en este mes.</div>";
+    const bloqueosHoras = bloqueosHorasServer[fecha] || [];
+    const setBloq = new Set([...bloqueosHoras, ...horasBloqueadasApi]);
+
+    for (let i=i1; i<=i2; i++){
+        const h = orden[i];
+        if (horasReservadas.includes(h) || setBloq.has(h) || esHoraPasada(fecha,h)) {
+            alert("El rango contiene horas NO disponibles.");
+            inicioSel = null;
+            finSel = null;
+            document.getElementById("hora_input").value = "";
+            renderizarHoras(fecha);
+            return;
         }
-    }, 0);
-});
+    }
 
+    document.querySelectorAll(".hora-box").forEach(b=>{
+        const idx = orden.indexOf(b.dataset.hora);
+        if (idx>=i1 && idx<=i2) b.classList.add("selected");
+    });
+
+    document.getElementById("hora_input").value =
+        orden[i1] + "-" + orden[i2];
+}
+
+document.getElementById("prevMes").onclick = ()=>{
+    mesActual--;
+    if (mesActual<0){ mesActual=11; anioActual--; }
+    generarDias(mesActual,anioActual);
+};
+
+document.getElementById("nextMes").onclick = ()=>{
+    mesActual++;
+    if (mesActual>11){ mesActual=0; anioActual++; }
+    generarDias(mesActual,anioActual);
+};
+
+window.addEventListener("DOMContentLoaded",()=>{
+    generarDias(mesActual,anioActual);
+
+    setTimeout(()=>{
+        const f = document.querySelector(".dia:not(.bloq-dia):not(.pasado)");
+        if (f){
+            f.classList.add("selected");
+            const fecha = f.dataset.fecha;
+            document.getElementById("fecha_input").value = fecha;
+            cargarHoras(fecha);
+        }
+    },0);
+});
 </script>
 
 {% endblock %}
