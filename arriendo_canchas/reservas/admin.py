@@ -7,9 +7,6 @@ from .models import (
     HorasNoDisponibles, DiaBloqueado
 )
 
-# =====================================================
-# HORAS GENERALES (09:00 a 22:00 cada 30 min)
-# =====================================================
 
 HORAS_DISPONIBLES = [
     time(9, 0), time(9, 30),
@@ -30,9 +27,7 @@ HORAS_DISPONIBLES = [
 
 HOUR_CHOICES = [(h.strftime("%H:%M"), h.strftime("%H:%M")) for h in HORAS_DISPONIBLES]
 
-# =====================================================
-# FORM PERSONALIZADO PARA BLOQUEO DE HORAS
-# =====================================================
+
 
 class HorasNoDisponiblesForm(forms.ModelForm):
     hora_inicio = forms.ChoiceField(
@@ -67,9 +62,7 @@ class HorasNoDisponiblesForm(forms.ModelForm):
 
         return cleaned
 
-# =====================================================
-# ADMIN
-# =====================================================
+
 
 @admin.register(HorasNoDisponibles)
 class HorasNoDisponiblesAdmin(admin.ModelAdmin):
@@ -107,3 +100,4 @@ class ReservaAdmin(admin.ModelAdmin):
         "estado"
     )
     list_filter = ("estado", "fecha", "cancha")
+
