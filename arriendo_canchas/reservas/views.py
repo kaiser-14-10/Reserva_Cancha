@@ -1,4 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Count
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -245,3 +247,52 @@ def calendario(request):
         "month": month,
         "dias": dias
     })
+
+@staff_member_required  
+def dashboard(request):
+    
+    total_reservas = Reserva.objects.count()
+    pagadas = Reserva.objects.filter(estado="Pagado").count()
+    pendientes = Reserva.objects.filter(estado="Pendiente").count()
+    canceladas = Reserva.objects.filter(estado="Cancelado").count()
+
+   
+    ingresos_totales = 0
+    ingresos_por_mes = {} 
+
+    
+    reservas_ok = Reserva.objects.filter(estado="Pagado").select_related('cancha')
+
+    for r in reservas_ok:
+        if r.hora_inicio and r.hora_fin:
+          
+            inicio = datetime.combine(date.min, r.hora_inicio)
+            fin = datetime.combine(date.min, r.hora_fin)
+
+           
+            duracion = fin - inicio
+            horas_decimal = duracion.total_seconds() / 3600
+
+            
+            monto = int(horas_decimal * float(r.cancha.precio)) 
+            
+            ingresos_totales += monto
+
+            mes_nombre = r.fecha.strftime("%B %Y").capitalize()
+            ingresos_por_mes[mes_nombre] = ingresos_por_mes.get(mes_nombre, 0) + monto
+
+   
+    canchas_populares = Reserva.objects.values('cancha__nombre')\
+        .annotate(total=Count('id'))\
+        .order_by('-total')[:5]
+
+    context = {
+        "ingresos_totales": int(ingresos_totales), 
+        "pagadas": pagadas,
+        "pendientes": pendientes,
+        "canceladas": canceladas,
+        "ingresos_por_mes": ingresos_por_mes,
+        "canchas_populares": canchas_populares,
+    }
+
+    return render(request, "dashboard.html", context)

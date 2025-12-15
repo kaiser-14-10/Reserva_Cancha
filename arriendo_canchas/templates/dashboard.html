@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}Reportes de Administración{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-success fw-bold">📊 Reportes de Gestión</h2>
+    <span class="badge bg-dark">Solo Administradores</span>
+</div>
+
+<div class="row g-3 mb-5">
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-success h-100 shadow">
+            <div class="card-header border-0 fw-bold">💰 Ingresos Totales</div>
+            <div class="card-body">
+                <h2 class="card-title">${{ ingresos_totales }}</h2>
+                <p class="small mb-0">De reservas pagadas</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card bg-white border-success h-100 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-success text-uppercase fw-bold">Reservas Pagadas</h6>
+                <h2 class="text-dark mb-0">{{ pagadas }}</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card bg-white border-warning h-100 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-warning text-uppercase fw-bold">Pendientes de Pago</h6>
+                <h2 class="text-dark mb-0">{{ pendientes }}</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card bg-white border-danger h-100 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-danger text-uppercase fw-bold">Canceladas</h6>
+                <h2 class="text-dark mb-0">{{ canceladas }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow border-0">
+            <div class="card-header bg-dark text-white fw-bold">
+                📅 Ingresos Mensuales
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Mes</th>
+                            <th class="text-end">Monto Recaudado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mes, monto in ingresos_por_mes.items %}
+                        <tr>
+                            <td>{{ mes }}</td>
+                            <td class="text-end fw-bold text-success">${{ monto }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-center p-3">No hay ingresos registrados aún.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow border-0">
+            <div class="card-header bg-primary text-white fw-bold">
+                🏆 Canchas Más Populares
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Cancha</th>
+                            <th class="text-center">Veces Reservada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in canchas_populares %}
+                        <tr>
+                            <td>{{ item.cancha__nombre }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-primary rounded-pill">{{ item.total }}</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-center p-3">Sin datos.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

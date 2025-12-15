@@ -17,4 +17,5 @@ urlpatterns = [
     path("pago-exitoso/", views.pago_exitoso, name="pago_exitoso"),
 
     path("api/horas_ocupadas/", views.api_horas_ocupadas, name="api_horas_ocupadas"),
+    path("dashboard/", views.dashboard, name="dashboard"),
 ]

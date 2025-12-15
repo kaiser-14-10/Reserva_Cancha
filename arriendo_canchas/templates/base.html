@@ -42,6 +42,11 @@
                     Hola, {{ user.username }}
                 </span>
 
+                {% if user.is_staff %}
+                    <a class="btn btn-warning fw-bold me-2" href="{% url 'dashboard' %}">
+                        📊 Reportes
+                    </a>
+                {% endif %}
                 <a class="btn btn-outline-light me-2" href="{% url 'mis_reservas' %}">
                     Mis reservas
                 </a>
